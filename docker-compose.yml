@@ -1,0 +1,79 @@
+services:
+  # ── MySQL 8: Application data (users, auth, audit, corridor config) ──
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: fxadvisor_app
+      MYSQL_USER: fxuser
+      MYSQL_PASSWORD: fxpass
+    ports:
+      - '3307:3306'
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d
+    command: "--default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "fxuser", "-pfxpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Postgres 16 + pgvector: VECTOR STORE ONLY ──
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: fxadvisor_vectors
+      POSTGRES_USER: vecuser
+      POSTGRES_PASSWORD: vecpass
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vecuser -d fxadvisor_vectors"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis 7: Conversation memory ──
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Spring Boot Backend (Sprint 8 onward — commented until then) ──
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - '8080:8080'
+  #   environment:
+  #     MYSQL_URL: jdbc:mysql://mysql:3306/fxadvisor_app?useSSL=false&allowPublicKeyRetrieval=true
+  #     MYSQL_USERNAME: fxuser
+  #     MYSQL_PASSWORD: fxpass
+  #     POSTGRES_URL: jdbc:postgresql://postgres:5432/fxadvisor_vectors
+  #     POSTGRES_USERNAME: vecuser
+  #     POSTGRES_PASSWORD: vecpass
+  #     REDIS_HOST: redis
+  #     OPENAI_API_KEY: ${OPENAI_API_KEY}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+volumes:
+  mysqldata:
+  pgdata:

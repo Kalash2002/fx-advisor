@@ -1,0 +1,32 @@
+# ── Maven build output ──
+**/target/
+**/pom.xml.tag
+**/pom.xml.releaseBackup
+**/release.properties
+
+# ── IntelliJ ──
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ── Secrets — NEVER commit these ──
+.env
+*.env
+backend/.env
+
+# ── OS files ──
+.DS_Store
+Thumbs.db
+
+# ── Logs ──
+*.log
+logs/
+
+# ── Docker volumes (if ever stored locally) ──
+docker/data/
+
+# ── Spring Boot ──
+backend/**/application-prod.yml
+backend/**/application-local.yml
