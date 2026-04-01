@@ -73,6 +73,18 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Flyway core + MySQL dialect -->
+        <!-- INTERVIEW: Why flyway-mysql separately?
+             Flyway moved database-specific support into optional modules in v9+.
+             flyway-core alone doesn't include MySQL-specific SQL parsing.
+             flyway-mysql adds: MySQL DDL parsing, version detection, and
+             compatibility with MySQL's non-standard SQL extensions. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+            <!-- version managed by Spring Boot parent POM -->
+        </dependency>
     </dependencies>
 
     <build>
