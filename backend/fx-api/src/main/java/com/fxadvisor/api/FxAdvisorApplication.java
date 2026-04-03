@@ -3,6 +3,8 @@ package com.fxadvisor.api;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+
 // Disable Flyway autoconfigure for Sprint 1 — we'll wire it properly in Sprint 2
 //@SpringBootApplication(exclude = {FlywayAutoConfiguration.class})
 // INTERVIEW: What does @SpringBootApplication do?
