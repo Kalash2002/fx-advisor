@@ -35,7 +35,7 @@ public class User {
     @Column(name = "full_name", length = 100)
     private String fullName;
 
-    @Column(name = "kyc_status", length = 20)
+    @Column(name = "kyc_status", columnDefinition = "ENUM('PENDING','VERIFIED','REJECTED')")
     private String kycStatus = "PENDING";
 
     @Column(nullable = false)

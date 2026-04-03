@@ -2,35 +2,18 @@ spring:
   application:
     name: fx-advisor
 
-  # ── PRIMARY DataSource: MySQL ─────────────────────────────────
-  # Spring Boot auto-configures one primary DataSource from spring.datasource.*
-  # HikariCP is the default and fastest connection pool in Spring Boot.
-  # INTERVIEW: Why configure pool sizes?
-  # Too few connections: requests queue up and timeout under load.
-  # Too many connections: MySQL runs out of connection slots (default max 151).
-  # Rule of thumb: pool size = (CPU cores * 2) + effective_disk_spindles
-  # For dev: 10 is fine. For production: measure under load.
   datasource:
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3307/fxadvisor_app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-    username: ${MYSQL_USERNAME:fxuser}
-    password: ${MYSQL_PASSWORD:fxpass}
+    url: jdbc:mysql://localhost:3307/fxadvisor_app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: fxuser
+    password: fxpass
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
-      connection-timeout: 30000    # 30s: how long to wait for a free connection
-      idle-timeout: 600000         # 10min: remove idle connections from pool
+      connection-timeout: 30000
+      idle-timeout: 600000
       pool-name: MySQLPool
 
-  # ── JPA / Hibernate ──────────────────────────────────────────
-  # INTERVIEW: Why ddl-auto: validate?
-  # 'validate' = Hibernate checks that entity classes match the DB schema
-  # at startup. If they don't match, the app refuses to start.
-  # This is the production-safe setting. 'create' would drop+recreate
-  # tables on every restart — catastrophic in production.
-  # 'update' would try to apply changes silently — dangerous and imprecise.
-  # 'none' would skip validation — risky, silent mismatches possible.
-  # 'validate' = fast-fail if schema is out of sync with JPA entities.
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
@@ -42,78 +25,43 @@ spring:
         jdbc:
           time_zone: UTC
 
-  # ── Flyway: MySQL Schema Migrations ──────────────────────────
-  # INTERVIEW: What does baseline-on-migrate do?
-  # If the DB already has tables (created manually or by another tool),
-  # Flyway would normally refuse to run (it didn't create those tables,
-  # so it doesn't trust them). baseline-on-migrate=true tells Flyway:
-  # "treat the current DB state as baseline version 0, and apply
-  # migrations from V1 onward." Safe for projects that are adding Flyway
-  # to an existing database.
   flyway:
     enabled: true
     locations: classpath:db/mysql
     baseline-on-migrate: true
     validate-on-migrate: true
 
-  # ── Redis ────────────────────────────────────────────────────
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: localhost
       port: 6379
       timeout: 2000ms
 
-  # ── Spring AI (disabled for Sprint 2, no API key yet) ────────
-  #autoconfigure:
-   # exclude:
-    #  - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
 
-  # ── Spring Cache: Redis-backed ───────────────────────────────
-  # Used in Sprint 6 by CorridorConfigService (@Cacheable)
-  # Defined here now so the cache infrastructure is ready.
   cache:
     type: redis
     redis:
-      time-to-live: 300000    # 5 minutes in milliseconds
+      time-to-live: 300000
 
-# ── Secondary DataSource: Postgres (pgvector only) ───────────────
-# NOT auto-configured by Spring Boot — manually wired in Sprint 8
-# via DataSourceConfig.java with @Bean("postgresDataSource")
 postgres:
   datasource:
-    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/fxadvisor_vectors}
-    username: ${POSTGRES_USERNAME:vecuser}
-    password: ${POSTGRES_PASSWORD:vecpass}
+    url: jdbc:postgresql://localhost:5432/fxadvisor_vectors
+    username: vecuser
+    password: vecpass
 
-# ── JWT (values used in Sprint 4) ───────────────────────────────
-# INTERVIEW: Why ${JWT_SECRET} instead of hardcoding?
-# Secrets in code = secrets in git history = security breach.
-# Environment variables are injected at runtime by the infrastructure
-# (Docker env, Kubernetes secrets, AWS Parameter Store).
-# The app fails fast on startup if JWT_SECRET is not set.
 jwt:
-  secret: ${JWT_SECRET:dev-secret-change-in-production-must-be-256bit}
-  access-token-expiry-ms: 900000       # 15 minutes
+  secret: dev-secret-change-in-production-must-be-256bit-xyz
+  access-token-expiry-ms: 900000
   refresh-token-expiry-days: 7
 
-# ── Actuator ────────────────────────────────────────────────────
-# INTERVIEW: What is Spring Boot Actuator?
-# Actuator exposes production-ready endpoints for monitoring:
-# /actuator/health: liveness + readiness check (used by Kubernetes, load balancers)
-# /actuator/metrics: JVM heap, HTTP request counts, custom Micrometer metrics
-# /actuator/prometheus: Prometheus-compatible scrape endpoint for Grafana dashboards
 management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,prometheus,info
+        include: health,metrics,info
   endpoint:
     health:
       show-details: always
-  prometheus:
-    metrics:
-      export:
-        enabled: true
 
 server:
   port: 8080
@@ -122,5 +70,4 @@ logging:
   level:
     com.fxadvisor: DEBUG
     org.springframework.security: INFO
-    org.springframework.ai: INFO
-    org.flywaydb: INFO   # Shows migration execution in logs — very useful
+    org.flywaydb: INFO

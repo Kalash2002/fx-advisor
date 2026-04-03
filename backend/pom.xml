@@ -93,11 +93,6 @@
                 <artifactId>fx-user</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-mysql</artifactId>
-                <version>9.22.3</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>
