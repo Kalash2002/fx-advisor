@@ -20,6 +20,59 @@
       <groupId>com.fxadvisor</groupId>
       <artifactId>fx-core</artifactId>
     </dependency>
+
+    <!-- Spring AI — OpenAI starter
+             Active when fx.llm.provider=openai or provider=anthropic.
+             Also provides the ChatClient.Builder abstraction used by LlmConfig. -->
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+    </dependency>
+
+    <!-- Spring AI — Ollama starter
+         Active when fx.llm.provider=ollama.
+         Provides OllamaChatModel auto-configured from spring.ai.ollama.* properties. -->
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
+    </dependency>
+
+    <!-- Spring Web — RestClient for Frankfurter API calls in FrankfurterClient
+         INTERVIEW: Why RestClient not WebClient?
+         @Tool methods are invoked synchronously by Spring AI's tool execution engine.
+         WebClient returns Mono<T> which would require .block() — this causes thread
+         blocking and potential deadlocks inside a reactive context.
+         RestClient is Spring 6's modern synchronous HTTP client — correct choice here. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- Jackson for JSON serialisation in simulated ReAct tool dispatch -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <!-- Validation — @NotBlank, @Positive on RateTestController DTO -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <!-- Test -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Mockito for unit tests that mock FrankfurterClient -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
 </project>
