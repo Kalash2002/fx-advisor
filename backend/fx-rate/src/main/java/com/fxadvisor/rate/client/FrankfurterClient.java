@@ -1,16 +1,17 @@
 package com.fxadvisor.rate.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fxadvisor.core.exception.RateFetchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * HTTP client for the Frankfurter FX rate API.
@@ -44,17 +45,6 @@ public class FrankfurterClient {
 
     private static final String BASE_URL = "https://api.frankfurter.app";
     private static final Logger log = LoggerFactory.getLogger(FrankfurterClient.class);
-    private final RestClient restClient;
-    private final ObjectMapper objectMapper;
-
-    public FrankfurterClient() {
-        this.restClient = RestClient.builder()
-                .baseUrl(BASE_URL)
-                .defaultHeader("Accept", "application/json")
-                .defaultHeader("User-Agent", "FxAdvisor/1.0")
-                .build();
-        this.objectMapper = new ObjectMapper();
-    }
 
     /**
      * Fetches the current mid-market exchange rate between two currencies.
@@ -64,106 +54,92 @@ public class FrankfurterClient {
      * @return Exchange rate as BigDecimal, e.g. 83.42 for USD→INR
      * @throws RateFetchException if the API call fails or the pair is unsupported
      */
-    @SuppressWarnings("unchecked")
+
     public BigDecimal getRate(String sourceCurrency, String targetCurrency) {
-        log.debug("Fetching rate {}/{} from Frankfurter", sourceCurrency, targetCurrency);
-
-        // Step 1: Fetch as raw String — String.class ALWAYS deserializes correctly.
-        // Map.class and ParameterizedTypeReference can both silently return null
-        // due to type erasure + Jackson version differences in Spring Boot 3.3.
-        String rawJson;
-
-//        try {
-//            Map<String, Object> response = restClient.get()
-//                    .uri("/latest?from={src}&to={tgt}", sourceCurrency, targetCurrency)
-//                    .retrieve()
-//                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
-//
-//            if (response == null) {
-//                throw new RateFetchException(
-//                        "Frankfurter API returned null response for %s/%s"
-//                                .formatted(sourceCurrency, targetCurrency));
-//            }
-//
-//            Map<String, Object> rates = (Map<String, Object>) response.get("rates");
-//            if (rates == null || !rates.containsKey(targetCurrency)) {
-//                throw new RateFetchException(
-//                        "No rate found for currency pair %s/%s — unsupported by Frankfurter"
-//                                .formatted(sourceCurrency, targetCurrency));
-//            }
-//
-//            Object rateValue = rates.get(targetCurrency);
-//
-//            // Frankfurter returns numbers as Double in the JSON response.
-//            // Convert via BigDecimal.valueOf(double) — preserves decimal precision
-//            // better than new BigDecimal(double.toString()) for exchange rate values.
-//            if (rateValue instanceof Number number) {
-//                return BigDecimal.valueOf(number.doubleValue());
-//            }
-//
-//            throw new RateFetchException(
-//                    "Unexpected rate value type for %s/%s: %s"
-//                            .formatted(sourceCurrency, targetCurrency,
-//                                    rateValue.getClass().getSimpleName()));
-//
-//        } catch (RestClientException e) {
-//            throw new RateFetchException(
-//                    "HTTP call to Frankfurter failed for %s/%s: %s"
-//                            .formatted(sourceCurrency, targetCurrency, e.getMessage()), e);
-//        }
+        String urlStr = BASE_URL + "/latest?from=" + sourceCurrency + "&to=" + targetCurrency;
+        log.info("Calling Frankfurter API: {}", urlStr);
 
         try {
-            rawJson = restClient.get()
-                    .uri("/latest?from={src}&to={tgt}", sourceCurrency, targetCurrency)
-                    .retrieve()
-                    .body(String.class);
+            URL url = new URL(urlStr);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
 
-            log.debug("Frankfurter raw JSON: {}", rawJson);
+            int responseCode = connection.getResponseCode();
+            log.info("Frankfurter response code: {}", responseCode);
 
-        } catch (RestClientException e) {
-            throw new RateFetchException(
-                    "HTTP call to Frankfurter failed for %s/%s: %s"
-                            .formatted(sourceCurrency, targetCurrency, e.getMessage()), e);
-        }
-
-        if (rawJson == null || rawJson.isBlank()) {
-            throw new RateFetchException(
-                    "Frankfurter API returned empty response for %s/%s"
-                            .formatted(sourceCurrency, targetCurrency));
-        }
-
-        try {
-            FrankfurterResponse parsed = objectMapper.readValue(rawJson, FrankfurterResponse.class);
-
-            if (parsed.rates() == null) {
+            if (responseCode != 200) {
                 throw new RateFetchException(
-                        "Frankfurter response missing 'rates' field for %s/%s. Raw: %s"
-                                .formatted(sourceCurrency, targetCurrency, rawJson));
+                        "Frankfurter API returned HTTP " + responseCode +
+                                " for " + sourceCurrency + "/" + targetCurrency);
             }
 
-            BigDecimal rate = parsed.rates().get(targetCurrency);
-            if (rate == null) {
-                throw new RateFetchException(
-                        "No rate for '%s' in Frankfurter response. Available: %s"
-                                .formatted(targetCurrency, parsed.rates().keySet()));
+            String responseBody;
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream()))) {
+                responseBody = reader.lines().collect(Collectors.joining());
             }
 
-            log.info("Fetched rate {}/{} = {}", sourceCurrency, targetCurrency, rate);
-            return rate;
+            log.info("Frankfurter raw response: {}", responseBody);
+
+            if (responseBody == null || responseBody.isBlank()) {
+                throw new RateFetchException(
+                        "Frankfurter API returned empty body for " +
+                                sourceCurrency + "/" + targetCurrency);
+            }
+
+            return parseRate(responseBody, targetCurrency, sourceCurrency);
 
         } catch (RateFetchException e) {
             throw e;
         } catch (Exception e) {
             throw new RateFetchException(
-                    "Failed to parse Frankfurter response for %s/%s. Raw JSON: [%s]. Error: %s"
-                            .formatted(sourceCurrency, targetCurrency, rawJson, e.getMessage()), e);
+                    "Failed to call Frankfurter API for " +
+                            sourceCurrency + "/" + targetCurrency + ": " + e.getMessage(), e);
         }
-
     }
 
-    private record FrankfurterResponse(
-            String base,
-            String date,
-            Map<String, BigDecimal> rates
-    ) {}
+    private BigDecimal parseRate(String json, String targetCurrency, String sourceCurrency) {
+        // Look for "INR":94.06 pattern in the rates object
+        String searchKey = "\"" + targetCurrency + "\":";
+        int keyIndex = json.indexOf(searchKey);
+
+        if (keyIndex == -1) {
+            // Check if source == target (Frankfurter returns empty rates for same currency)
+            if (sourceCurrency.equalsIgnoreCase(targetCurrency)) {
+                throw new RateFetchException(
+                        "Source and target currency cannot be the same: " + sourceCurrency);
+            }
+            throw new RateFetchException(
+                    "Currency " + targetCurrency + " not found in Frankfurter response. " +
+                            "Raw: " + json);
+        }
+
+        int valueStart = keyIndex + searchKey.length();
+        int valueEnd = json.indexOf(',', valueStart);
+        if (valueEnd == -1) {
+            valueEnd = json.indexOf('}', valueStart);
+        }
+
+        if (valueEnd == -1) {
+            throw new RateFetchException(
+                    "Could not parse rate value from Frankfurter response. Raw: " + json);
+        }
+
+        String rateStr = json.substring(valueStart, valueEnd).trim();
+        log.info("Parsed rate string: '{}'", rateStr);
+
+        try {
+            BigDecimal rate = new BigDecimal(rateStr);
+            log.info("Successfully parsed rate {}/{} = {}", sourceCurrency, targetCurrency, rate);
+            return rate;
+        } catch (NumberFormatException e) {
+            throw new RateFetchException(
+                    "Could not convert rate value '" + rateStr + "' to BigDecimal. " +
+                            "Raw response: " + json);
+        }
+    }
+
 }
