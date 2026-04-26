@@ -32,10 +32,10 @@
     <!-- Spring AI — Ollama starter
          Active when fx.llm.provider=ollama.
          Provides OllamaChatModel auto-configured from spring.ai.ollama.* properties. -->
-    <dependency>
-      <groupId>org.springframework.ai</groupId>
-      <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>org.springframework.ai</groupId>-->
+<!--      <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>-->
+<!--    </dependency>-->
 
     <!-- Spring Web — RestClient for Frankfurter API calls in FrankfurterClient
          INTERVIEW: Why RestClient not WebClient?

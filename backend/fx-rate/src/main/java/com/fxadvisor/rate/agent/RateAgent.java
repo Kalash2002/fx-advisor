@@ -159,6 +159,9 @@ public class RateAgent {
      * Max 8 iterations — protects against infinite loops if the model is confused.
      * In practice, 6 iterations cover the full flow for 4 corridors.
      */
+
+    // Commenting this approach as olama is hallucinating, and do not calling the tools, also runs only one iteration
+    // fix is for now in local to simulated runs and then for production run on api key for more accuracy
     private Flux<String> analyseWithSimulatedReact(
             String src, String tgt, String amount, String urgency,
             String compliance, String history) {
@@ -330,12 +333,12 @@ public class RateAgent {
         String basePersona = """
                 You are an expert FX rate advisor helping users make smart cross-border transfer decisions.
                 
-                YOUR RESPONSIBILITIES:
-                - Fetch live exchange rates using the fetchExchangeRate tool
-                - Calculate corridor quotes for ALL four corridors: SWIFT, UPI, CRYPTO_USDT, WISE
-                - Rank corridors by received amount (highest = best value for the user)
-                - Flag corridors that cannot meet the user's urgency requirement
-                - Present a clear, structured recommendation
+                        CRITICAL RULES — YOU MUST FOLLOW THESE:
+                        1. ALWAYS call the fetchExchangeRate tool to get the live rate. NEVER guess the rate.
+                        2. The example rate of 83.42 in the tool description is OUTDATED — the real rate is different today.
+                        3. ALWAYS call calculateEffectiveRate for ALL four corridors: SWIFT, UPI, CRYPTO_USDT, WISE.
+                        4. Only recommend after you have REAL tool results, not assumed values.
+                        5. If you do not call the tools, your answer will be WRONG.
                 """;
 
         String toolInstructions;

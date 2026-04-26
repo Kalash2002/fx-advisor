@@ -2,6 +2,10 @@ spring:
   application:
     name: fx-advisor
 
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration
+
   datasource:
     url: jdbc:mysql://localhost:3307/fxadvisor_app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: fxuser
@@ -37,11 +41,24 @@ spring:
       port: 6379
       timeout: 2000ms
 
-
   cache:
     type: redis
     redis:
       time-to-live: 300000
+
+  ai:
+    openai:
+      api-key: ${GROQ_KEY}
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: ${FX_GROQ_MODEL:llama-3.3-70b-versatile}
+          temperature: 0.1
+          max-tokens: 2000
+
+fx:
+  llm:
+    provider: ${FX_LLM_PROVIDER:openai}
 
 postgres:
   datasource:
@@ -71,54 +88,5 @@ logging:
     com.fxadvisor: DEBUG
     org.springframework.security: INFO
     org.flywaydb: INFO
-
-  # ── LLM Provider Selection ────────────────────────────────────
-  # Controls which LLM backend the agent uses.
-  # Options: ollama (default — free, local), openai, anthropic
-  #
-  # To use Ollama (no API key):
-  #   fx.llm.provider: ollama
-  #   spring.ai.ollama.chat.options.model: qwen2.5:7b
-  #
-  # To use OpenAI:
-  #   fx.llm.provider: openai
-  #   Set environment variable: OPENAI_API_KEY=sk-...
-  #
-  # To use Anthropic (via OpenAI-compatible endpoint):
-  #   fx.llm.provider: anthropic
-  #   Set environment variable: ANTHROPIC_API_KEY=sk-ant-...
-  #   Set: spring.ai.openai.base-url: https://api.anthropic.com/v1
-  fx:
-    llm:
-      provider: ${FX_LLM_PROVIDER:ollama}
-
-  spring:
-    ai:
-      # ── OpenAI Config ──────────────────────────────────────────
-      # Used when fx.llm.provider=openai or provider=anthropic
-      # api-key defaults to a placeholder — Spring AI will still
-      # auto-configure the bean; it simply won't be selected as primary.
-      # INTERVIEW: Why not exclude OpenAiAutoConfiguration when using Ollama?
-      # LlmConfig needs both ChatModel beans available so it can select one.
-      # Excluding the autoconfigure would remove the bean before LlmConfig runs.
-#      openai:
-#        api-key: ${OPENAI_API_KEY:placeholder-not-used-with-ollama}
-#        chat:
-#          options:
-#            model: ${FX_OPENAI_MODEL:gpt-4o}
-#            temperature: 0.1
-#            max-tokens: 2000
-
-      # ── Ollama Config ──────────────────────────────────────────
-      # Used when fx.llm.provider=ollama (the default)
-      # Requires: Ollama installed and running on localhost:11434
-      # Install: curl -fsSL https://ollama.com/install.sh | sh
-      # Pull model: ollama pull qwen2.5:7b
-      ollama:
-        base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-        chat:
-          options:
-            model: ${FX_OLLAMA_MODEL:qwen2.5:7b}
-            temperature: 0.1
-            # num-predict is Ollama's equivalent of max-tokens
-            num-predict: 2000
+    org.springframework.ai: DEBUG
+    org.springframework.ai.chat.client: TRACE

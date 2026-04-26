@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.logging.Logger;
 
 /**
  * Spring AI @Tool methods for FX rate fetching and fee computation.
@@ -50,6 +51,8 @@ import java.math.RoundingMode;
 @Component
 public class RateFetchTools {
 
+    private static final Logger log = Logger.getLogger(RateFetchTools.class.getName());
+
     private final FrankfurterClient frankfurterClient;
 
     public RateFetchTools(FrankfurterClient frankfurterClient) {
@@ -69,20 +72,29 @@ public class RateFetchTools {
      * guesses a rate from training data — potentially months or years stale.
      * Forcing a tool call guarantees real-time accuracy.
      */
-    @Tool(description = """
-            Fetches the current mid-market exchange rate between two currencies
-            from the Frankfurter API. Returns the rate as a decimal number.
-            Always call this tool FIRST before computing any corridor fees.
-            Never guess or use historical rates — always call this tool.
-            Example: fetching USD to INR returns approximately 83.42.
-            """)
+
+    // commenting this description as it is hallucinating for example value
+//    @Tool(description = """
+//            Fetches the current mid-market exchange rate between two currencies
+//            from the Frankfurter API. Returns the rate as a decimal number.
+//            Always call this tool FIRST before computing any corridor fees.
+//            Never guess or use historical rates — always call this tool.
+//            Example: fetching USD to INR returns approximately 83.42.
+//            """)
+    @Tool(description = "Fetches the CURRENT LIVE mid-market exchange rate between two currencies\n" +
+            "        from the Frankfurter API. YOU MUST CALL THIS TOOL to get the real rate.\n" +
+            "        DO NOT guess or assume any rate value — rates change daily.\n" +
+            "        Returns the actual current rate as a decimal number.\n" +
+            "        The rate changes every day — only this tool has the current value.")
     public BigDecimal fetchExchangeRate(
             @ToolParam(description = "ISO 4217 source currency code, e.g. USD, EUR, GBP")
             String sourceCurrency,
             @ToolParam(description = "ISO 4217 target currency code, e.g. INR, PHP, MXN")
             String targetCurrency) {
-
-        return frankfurterClient.getRate(sourceCurrency, targetCurrency);
+        log.info(">>> TOOL CALLED: fetchExchangeRate"+sourceCurrency+"||"+targetCurrency);
+        BigDecimal rate = frankfurterClient.getRate(sourceCurrency, targetCurrency);
+        log.info(">>> TOOL RESULT: fetchExchangeRate = "+rate);
+        return rate;
     }
 
     /**

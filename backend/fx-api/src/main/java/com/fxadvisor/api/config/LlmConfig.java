@@ -4,7 +4,6 @@ import com.fxadvisor.core.enums.LlmProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -43,8 +42,6 @@ public class LlmConfig {
 
     private static final Logger log = LoggerFactory.getLogger(LlmConfig.class);
 
-    @Value("${fx.llm.provider:ollama}")
-    private String providerName;
 
     /**
      * Primary ChatClient bean injected throughout the application.
@@ -56,24 +53,47 @@ public class LlmConfig {
      * by their respective Spring AI starters. We accept both here
      * and select one based on the provider property.
      */
+
+    @Value("${fx.llm.provider:openai}")
+    private String providerName;
+
     @Bean
     @Primary
-    public ChatClient primaryChatClient(
-            OpenAiChatModel openAiChatModel,
-            OllamaChatModel ollamaChatModel) {
-
+    public ChatClient primaryChatClient(OpenAiChatModel openAiChatModel) {
         LlmProvider provider = parseProvider();
         log.info("=== LLM Provider: {} | Native tool calling: {} ===",
                 provider, provider.supportsNativeToolCalling());
-
-        return switch (provider) {
-            // OPENAI and ANTHROPIC both use the OpenAiChatModel.
-            // For ANTHROPIC, the base-url in application.yml points to
-            // Anthropic's OpenAI-compatible endpoint instead of api.openai.com
-            case OPENAI, ANTHROPIC -> ChatClient.builder(openAiChatModel).build();
-            case OLLAMA             -> ChatClient.builder(ollamaChatModel).build();
-        };
+        // Groq uses OPENAI provider type (OpenAI-compatible protocol)
+        return ChatClient.builder(openAiChatModel).build();
     }
+//    @Bean
+//    @Primary
+//    public ChatClient primaryChatClient(
+//            OpenAiChatModel openAiChatModel,
+//            OllamaChatModel ollamaChatModel) {
+//
+//        LlmProvider provider = parseProvider();
+//        log.info("=== LLM Provider: {} | Native tool calling: {} ===",
+//                provider, provider.supportsNativeToolCalling());
+//
+//        return switch (provider) {
+//            // OPENAI and ANTHROPIC both use the OpenAiChatModel.
+//            // For ANTHROPIC, the base-url in application.yml points to
+//            // Anthropic's OpenAI-compatible endpoint instead of api.openai.com
+//            case OPENAI, ANTHROPIC -> ChatClient.builder(openAiChatModel).build();
+//            case OLLAMA             -> ChatClient.builder(ollamaChatModel).build();
+//        };
+//    }
+
+//    @Bean
+//    @Primary
+//    public ChatClient primaryChatClient(OllamaChatModel ollamaChatModel) {
+//        LlmProvider provider = parseProvider();
+//        log.info("=== LLM Provider: {} | Native tool calling: {} ===",
+//                provider, provider.supportsNativeToolCalling());
+//        // Only Ollama for now — add OpenAI branch when you have an API key
+//        return ChatClient.builder(ollamaChatModel).build();
+//    }
 
     /**
      * Exposes the active LlmProvider as a bean.
